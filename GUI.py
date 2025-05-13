@@ -65,7 +65,7 @@ class FileProcessorApp:
             command=self.reset_app
         )
 
-    # Выбор файла
+    # Выбор расширения файла
     def select_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV файлы", "*.csv"), ("Excel файлы", "*.xlsx")])
         if not file_path:
