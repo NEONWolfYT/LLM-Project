@@ -78,7 +78,7 @@ class FileProcessorApp:
     # Обработка файла
     def process_file(self):
         try:
-            # Проверяем наличие внешнего скрипта перед обработкой
+            # Проверяем наличие внешнего скрипта перед обработкой (.py файл aonokoi)
             if not os.path.exists(EXTERNAL_SCRIPT):
                 self.status_text.set("Ошибка: программа не может обработать ваш файл")
                 self.show_retry_button()
