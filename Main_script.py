@@ -231,24 +231,30 @@ class QwenChatbot:
 
         return full_response
 
+
 def create_excel(data, workbook_name, sheet_name):
     '''
     :param data: json-строка (ответ нейронки)
     :param workbook_name: название книги excel
     :param sheet_name: название листа excel
     '''
-    df = pd.read_json(StringIO(data), orient='records')
-    df.to_excel(workbook_name, sheet_name =sheet_name, na_rep='Неизвестно', index=False)
+    try:
+        df = pd.read_json(StringIO(data), orient='records')
+        file_extension = Path(workbook_name).suffix.lower()
+        if file_extension == ".xlsx":
+            df.to_excel(workbook_name, sheet_name=sheet_name, na_rep='Неизвестно', index=False)
+        elif file_extension == ".csv":
+            df.to_csv(workbook_name, na_rep='Неизвестно', index=False, encoding='utf-8-sig')
+        else:
+            raise ValueError(f"Неподдерживаемый формат файла: {file_extension}")
+    except Exception as e:
+        print(f"Ошибка при сохранении файла: {e}")
 
-    # Оценка с помощью ROUGE
-
-    rouge = evaluate.load('rouge')
-
-    results = rouge.compute(predictions=predictions, references=references)
 
 # Папка для временных файлов
 TEMP_DIR = Path("temp_files")
 TEMP_DIR.mkdir(exist_ok=True)
+
 
 class FileProcessorApp:
     def __init__(self, root):
@@ -321,10 +327,11 @@ class FileProcessorApp:
                             for key, value in (item.split(":", 1) for item in answer.split(";") if item.strip())
                         }
                         # Преобразование словаря в JSON-строку
-                        json_string = json.dumps(data, ensure_ascii=False)
-                        arr.append(json_string)
-
-                create_excel(arr,'Example.csv','Лист 1')
+                        # json_string = json.dumps(data, ensure_ascii=False)
+                        # arr.append(json_string)
+                        arr.append(data)
+                tmp = json.dumps(arr, ensure_ascii=False)
+                create_excel(tmp, output_path, 'Лист 1')  # Вместо фиксированного имени Example.csv
 
             self.status_text.set("Спасибо за ожидание!")
             self.download_button.pack()
