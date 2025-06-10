@@ -314,7 +314,6 @@ class FileProcessorApp:
             if True:
                 self.status_text.set("Обработка файла")
                 arr = []
-                chatbot=QwenChatbot()
 
                 for req in get_reqs(file_path):
                     user_input = req
@@ -363,6 +362,7 @@ class FileProcessorApp:
             messagebox.showinfo("Готово", "Файл успешно сохранён.")
 
 if __name__ == "__main__":
+    chatbot=QwenChatbot()
     root = tk.Tk()
     app = FileProcessorApp(root)
     root.mainloop()
