@@ -4,7 +4,6 @@ import torch
 import pandas as pd
 import csv
 from io import StringIO
-import evaluate
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
@@ -260,7 +259,7 @@ class FileProcessorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Обработка CSV/XLSX")
-        self.root.geometry("600x600")
+        self.root.geometry("400x400")
         self.root.resizable(False, False)
 
         self.filename = None
@@ -325,9 +324,6 @@ class FileProcessorApp:
                             key.strip(): value.strip()
                             for key, value in (item.split(":", 1) for item in answer.split(";") if item.strip())
                         }
-                        # Преобразование словаря в JSON-строку
-                        # json_string = json.dumps(data, ensure_ascii=False)
-                        # arr.append(json_string)
                         arr.append(data)
                 tmp = json.dumps(arr, ensure_ascii=False)
                 create_excel(tmp, output_path, 'Лист 1')  # Вместо фиксированного имени Example.csv
@@ -362,7 +358,7 @@ class FileProcessorApp:
             messagebox.showinfo("Готово", "Файл успешно сохранён.")
 
 if __name__ == "__main__":
-    chatbot=QwenChatbot()
+    chatbot = QwenChatbot()
     root = tk.Tk()
     app = FileProcessorApp(root)
     root.mainloop()
