@@ -2,7 +2,6 @@ import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import pandas as pd
-import csv
 from io import StringIO
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -13,14 +12,64 @@ import subprocess
 import threading
 import uuid
 from pathlib import Path
+import numpy as np
 
 def get_reqs(file_name):
-    with open(file_name, encoding='utf-8-sig') as file:
-        reader = csv.reader(file)
-        data = []
-        for row in reader:
-            data.append(' '.join(row))
-    return data
+    df = pd.read_excel(file_name, engine= 'openpyxl',header= None)
+    return [' '.join(list(row)[1:]) for row in df.itertuples()]
+
+
+def formate_output(data, workbook_name):
+    '''
+    :param data: json-строка (ответ нейронки)
+    :param workbook_name: название книги excel
+    '''
+    try:
+        file_extension = Path(workbook_name).suffix.lower()
+        if file_extension == ".xlsx":
+            aggregate_df(data, workbook_name)
+        else:
+            raise ValueError(f"Неподдерживаемый формат файла: {file_extension}")
+    except Exception as e:
+        print(f"Ошибка при сохранении файла: {e}")
+
+
+def create_excel(data, workbook_name, sheet_number):
+    try:
+        with pd.ExcelWriter(path=workbook_name, mode='a', engine='openpyxl', if_sheet_exists='new') as writer:
+            data.to_excel(writer, sheet_name=f'sheet_{sheet_number}', na_rep='Неизвестно', index=False)
+    except FileNotFoundError:
+        with pd.ExcelWriter(path=workbook_name, mode='w', engine='openpyxl') as writer:
+            data.to_excel(writer, sheet_name=f'sheet_{sheet_number}', na_rep='Неизвестно', index=False)
+
+
+def aggregate_df(data, excel_name):
+    df = pd.read_json(StringIO(data), orient='records')
+    df = (df
+          .sort_values(by= df.columns[0], key=lambda col: col.str.lower())
+          .reset_index(drop=True)
+          .replace('Неизвестно', np.nan))
+    prev_hd = df.iloc[0,0]
+    head = tail = 0
+    sheet_index = 1
+    mx = df.shape[0]
+
+    for row in df.itertuples():
+
+        if row[1] != prev_hd:
+            prev_hd = row[1]
+            curr_df = df.iloc[tail: head]
+            curr_df = curr_df.dropna(axis='columns', how='all')
+            create_excel(curr_df, excel_name, sheet_index)
+            sheet_index += 1
+            tail = head
+        if row[0] == mx - 1:
+            curr_df = df.iloc[tail: head + 1]
+            curr_df = curr_df.dropna(axis='columns', how='all')
+            create_excel(curr_df, excel_name, sheet_index)
+        head += 1
+
+
 
 
 class QwenChatbot:
@@ -231,25 +280,6 @@ class QwenChatbot:
         return full_response
 
 
-def create_excel(data, workbook_name, sheet_name):
-    '''
-    :param data: json-строка (ответ нейронки)
-    :param workbook_name: название книги excel
-    :param sheet_name: название листа excel
-    '''
-    try:
-        df = pd.read_json(StringIO(data), orient='records')
-        file_extension = Path(workbook_name).suffix.lower()
-        if file_extension == ".xlsx":
-            df.to_excel(workbook_name, sheet_name=sheet_name, na_rep='Неизвестно', index=False)
-        elif file_extension == ".csv":
-            df.to_csv(workbook_name, na_rep='Неизвестно', index=False, encoding='utf-8-sig')
-        else:
-            raise ValueError(f"Неподдерживаемый формат файла: {file_extension}")
-    except Exception as e:
-        print(f"Ошибка при сохранении файла: {e}")
-
-
 # Папка для временных файлов
 TEMP_DIR = Path("temp_files")
 TEMP_DIR.mkdir(exist_ok=True)
@@ -258,15 +288,15 @@ TEMP_DIR.mkdir(exist_ok=True)
 class FileProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Обработка CSV/XLSX")
-        self.root.geometry("400x400")
+        self.root.title("Обработка XLSX")
+        self.root.geometry("600x600")
         self.root.resizable(False, False)
 
         self.filename = None
         self.output_path = None
 
         # Основной текст
-        self.label = ttk.Label(root, text="добавьте файл (csv, xlsx)", font=("Arial", 12))
+        self.label = ttk.Label(root, text="добавьте файл (xlsx)", font=("Arial", 12))
         self.label.pack(pady=10)
 
         # Кнопка выбора файла
@@ -290,7 +320,7 @@ class FileProcessorApp:
 
     # Выбор файла
     def select_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CSV файлы", "*.csv"), ("Excel файлы", "*.xlsx")])
+        file_path = filedialog.askopenfilename(filetypes=[("Excel файлы", "*.xlsx")])
         if not file_path:
             return
         self.filename = file_path
@@ -313,7 +343,6 @@ class FileProcessorApp:
             if True:
                 self.status_text.set("Обработка файла")
                 arr = []
-
                 for req in get_reqs(file_path):
                     user_input = req
                     response = chatbot.generate_response(user_input)
@@ -326,7 +355,7 @@ class FileProcessorApp:
                         }
                         arr.append(data)
                 tmp = json.dumps(arr, ensure_ascii=False)
-                create_excel(tmp, output_path, 'Лист 1')  # Вместо фиксированного имени Example.csv
+                formate_output(tmp, output_path)
 
             self.status_text.set("Спасибо за ожидание!")
             self.download_button.pack()
@@ -352,13 +381,14 @@ class FileProcessorApp:
         if not self.output_path or not os.path.exists(self.output_path):
             messagebox.showerror("Ошибка", "Файл не найден.")
             return
-        save_path = filedialog.asksaveasfilename(defaultextension=self.output_path.suffix, filetypes=[("CSV", "*.csv"), ("Excel", "*.xlsx")])
+        save_path = filedialog.asksaveasfilename(defaultextension=self.output_path.suffix, filetypes=[("Excel", "*.xlsx")])
         if save_path:
             shutil.copy(self.output_path, save_path)
             messagebox.showinfo("Готово", "Файл успешно сохранён.")
 
+
 if __name__ == "__main__":
-    chatbot = QwenChatbot()
+    chatbot=QwenChatbot()
     root = tk.Tk()
     app = FileProcessorApp(root)
     root.mainloop()
