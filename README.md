@@ -10,6 +10,7 @@
 <h3 align="center">Что ещё необходимо знать</h3>
 
 1. В документе PDF вы можете изучить поставленную перед нашей командой задачу
+2. Чтобы запустить программу, скачайте exe файл на свой ПК
 
 <h1 align="center">Удачного программирования!
 <img src="https://github.com/blackcater/blackcater/raw/main/images/Hi.gif" height="32"/></h1>
